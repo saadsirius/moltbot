@@ -3,6 +3,8 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult, readStringParam, readNumberParam } from "./common.js";
+import { CONFIG_DIR, ensureDir } from "../../utils.js";
+import path from "node:path";
 
 const execAsync = promisify(exec);
 
@@ -16,6 +18,7 @@ const MacControlSchema = Type.Object({
     Type.Literal("run_applescript"),
     Type.Literal("open"),
     Type.Literal("media_control"),
+    Type.Literal("screenshot"),
   ]),
   value: Type.Optional(
     Type.Number({
@@ -23,9 +26,15 @@ const MacControlSchema = Type.Object({
     }),
   ),
   title: Type.Optional(Type.String({ description: "Title for notification." })),
-  body: Type.Optional(Type.String({ description: "Body text for notification." })),
-  script: Type.Optional(Type.String({ description: "Raw AppleScript to execute." })),
-  target: Type.Optional(Type.String({ description: "App name or file path for open." })),
+  body: Type.Optional(
+    Type.String({ description: "Body text for notification." }),
+  ),
+  script: Type.Optional(
+    Type.String({ description: "Raw AppleScript to execute." }),
+  ),
+  target: Type.Optional(
+    Type.String({ description: "App name or file path for open." }),
+  ),
   media_action: Type.Optional(
     Type.Union(
       [
@@ -46,7 +55,8 @@ export function createMacControlTool(): AnyAgentTool | null {
   return {
     name: "mac_control",
     label: "Mac Control",
-    description: "Control macOS system settings and applications via AppleScript.",
+    description:
+      "Control macOS system settings and applications via AppleScript.",
     parameters: MacControlSchema,
     execute: async (_toolCallId, params) => {
       const action = readStringParam(params, "action", { required: true });
@@ -80,13 +90,16 @@ export function createMacControlTool(): AnyAgentTool | null {
             // This is harder via AppleScript alone, usually needs ioreg or a CLI tool.
             // We'll skip for now or provide a best-effort.
             return jsonResult({
-              error: "get_brightness not supported natively via AppleScript easily",
+              error:
+                "get_brightness not supported natively via AppleScript easily",
             });
           }
           case "notification": {
             const title = readStringParam(params, "title") ?? "Moltbot";
             const body = readStringParam(params, "body", { required: true });
-            await execAsync(`osascript -e 'display notification "${body}" with title "${title}"'`);
+            await execAsync(
+              `osascript -e 'display notification "${body}" with title "${title}"'`,
+            );
             return jsonResult({ success: true });
           }
           case "run_applescript": {
@@ -130,6 +143,21 @@ export function createMacControlTool(): AnyAgentTool | null {
             // For now, use generic Media Keys (System Events)
             await execAsync(`osascript -e '${script}'`);
             return jsonResult({ success: true, action: mediaAction });
+          }
+          case "screenshot": {
+            const mediaDir = path.join(CONFIG_DIR, "media");
+            await ensureDir(mediaDir);
+            const tempPath = path.join(
+              mediaDir,
+              `screenshot-${Date.now()}.png`,
+            );
+            await execAsync(`screencapture -x "${tempPath}"`);
+            return jsonResult({
+              success: true,
+              path: tempPath,
+              message:
+                "Screenshot captured and stored locally in moltbot data directory.",
+            });
           }
           default:
             throw new Error(`Unknown action: ${action}`);

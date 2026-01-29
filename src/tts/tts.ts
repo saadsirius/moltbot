@@ -81,7 +81,12 @@ const TELEPHONY_OUTPUT = {
   elevenlabs: { format: "pcm_22050", sampleRate: 22050 },
 };
 
-const TTS_AUTO_MODES = new Set<TtsAutoMode>(["off", "always", "inbound", "tagged"]);
+const TTS_AUTO_MODES = new Set<TtsAutoMode>([
+  "off",
+  "always",
+  "inbound",
+  "tagged",
+]);
 
 export type ResolvedTtsConfig = {
   auto: TtsAutoMode;
@@ -249,7 +254,8 @@ export function resolveTtsConfig(cfg: MoltbotConfig): ResolvedTtsConfig {
   const raw: TtsConfig = cfg.messages?.tts ?? {};
   const providerSource = raw.provider ? "config" : "default";
   const edgeOutputFormat = raw.edge?.outputFormat?.trim();
-  const auto = normalizeTtsAutoMode(raw.auto) ?? (raw.enabled ? "always" : "off");
+  const auto =
+    normalizeTtsAutoMode(raw.auto) ?? (raw.enabled ? "always" : "off");
   return {
     auto,
     mode: raw.mode ?? "final",
@@ -267,15 +273,20 @@ export function resolveTtsConfig(cfg: MoltbotConfig): ResolvedTtsConfig {
       languageCode: raw.elevenlabs?.languageCode,
       voiceSettings: {
         stability:
-          raw.elevenlabs?.voiceSettings?.stability ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.stability,
+          raw.elevenlabs?.voiceSettings?.stability ??
+          DEFAULT_ELEVENLABS_VOICE_SETTINGS.stability,
         similarityBoost:
           raw.elevenlabs?.voiceSettings?.similarityBoost ??
           DEFAULT_ELEVENLABS_VOICE_SETTINGS.similarityBoost,
-        style: raw.elevenlabs?.voiceSettings?.style ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.style,
+        style:
+          raw.elevenlabs?.voiceSettings?.style ??
+          DEFAULT_ELEVENLABS_VOICE_SETTINGS.style,
         useSpeakerBoost:
           raw.elevenlabs?.voiceSettings?.useSpeakerBoost ??
           DEFAULT_ELEVENLABS_VOICE_SETTINGS.useSpeakerBoost,
-        speed: raw.elevenlabs?.voiceSettings?.speed ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.speed,
+        speed:
+          raw.elevenlabs?.voiceSettings?.speed ??
+          DEFAULT_ELEVENLABS_VOICE_SETTINGS.speed,
       },
     },
     openai: {
@@ -309,7 +320,9 @@ export function resolveTtsPrefsPath(config: ResolvedTtsConfig): string {
   return path.join(CONFIG_DIR, "settings", "tts.json");
 }
 
-function resolveTtsAutoModeFromPrefs(prefs: TtsUserPrefs): TtsAutoMode | undefined {
+function resolveTtsAutoModeFromPrefs(
+  prefs: TtsUserPrefs,
+): TtsAutoMode | undefined {
   const auto = normalizeTtsAutoMode(prefs.tts?.auto);
   if (auto) return auto;
   if (typeof prefs.tts?.enabled === "boolean") {
@@ -330,7 +343,9 @@ export function resolveTtsAutoMode(params: {
   return params.config.auto;
 }
 
-export function buildTtsSystemPromptHint(cfg: MoltbotConfig): string | undefined {
+export function buildTtsSystemPromptHint(
+  cfg: MoltbotConfig,
+): string | undefined {
   const config = resolveTtsConfig(cfg);
   const prefsPath = resolveTtsPrefsPath(config);
   const autoMode = resolveTtsAutoMode({ config, prefsPath });
@@ -377,7 +392,10 @@ function atomicWriteFileSync(filePath: string, content: string): void {
   }
 }
 
-function updatePrefs(prefsPath: string, update: (prefs: TtsUserPrefs) => void): void {
+function updatePrefs(
+  prefsPath: string,
+  update: (prefs: TtsUserPrefs) => void,
+): void {
   const prefs = readPrefs(prefsPath);
   update(prefs);
   mkdirSync(path.dirname(prefsPath), { recursive: true });
@@ -405,7 +423,10 @@ export function setTtsEnabled(prefsPath: string, enabled: boolean): void {
   setTtsAutoMode(prefsPath, enabled ? "always" : "off");
 }
 
-export function getTtsProvider(config: ResolvedTtsConfig, prefsPath: string): TtsProvider {
+export function getTtsProvider(
+  config: ResolvedTtsConfig,
+  prefsPath: string,
+): TtsProvider {
   const prefs = readPrefs(prefsPath);
   if (prefs.tts?.provider) return prefs.tts.provider;
   if (config.providerSource === "config") return config.provider;
@@ -437,7 +458,10 @@ export function isSummarizationEnabled(prefsPath: string): boolean {
   return prefs.tts?.summarize ?? DEFAULT_TTS_SUMMARIZE;
 }
 
-export function setSummarizationEnabled(prefsPath: string, enabled: boolean): void {
+export function setSummarizationEnabled(
+  prefsPath: string,
+  enabled: boolean,
+): void {
   updatePrefs(prefsPath, (prefs) => {
     prefs.tts = { ...prefs.tts, summarize: enabled };
   });
@@ -469,7 +493,11 @@ export function resolveTtsApiKey(
   provider: TtsProvider,
 ): string | undefined {
   if (provider === "elevenlabs") {
-    return config.elevenlabs.apiKey || process.env.ELEVENLABS_API_KEY || process.env.XI_API_KEY;
+    return (
+      config.elevenlabs.apiKey ||
+      process.env.ELEVENLABS_API_KEY ||
+      process.env.XI_API_KEY
+    );
   }
   if (provider === "openai") {
     return config.openai.apiKey || process.env.OPENAI_API_KEY;
@@ -477,13 +505,16 @@ export function resolveTtsApiKey(
   return undefined;
 }
 
-export const TTS_PROVIDERS = ["openai", "elevenlabs", "edge"] as const;
+export const TTS_PROVIDERS = ["openai", "elevenlabs", "edge", "macos"] as const;
 
 export function resolveTtsProviderOrder(primary: TtsProvider): TtsProvider[] {
   return [primary, ...TTS_PROVIDERS.filter((provider) => provider !== primary)];
 }
 
-export function isTtsProviderConfigured(config: ResolvedTtsConfig, provider: TtsProvider): boolean {
+export function isTtsProviderConfigured(
+  config: ResolvedTtsConfig,
+  provider: TtsProvider,
+): boolean {
   if (provider === "edge") return config.edge.enabled;
   return Boolean(resolveTtsApiKey(config, provider));
 }
@@ -498,13 +529,20 @@ function normalizeElevenLabsBaseUrl(baseUrl: string): string {
   return trimmed.replace(/\/+$/, "");
 }
 
-function requireInRange(value: number, min: number, max: number, label: string): void {
+function requireInRange(
+  value: number,
+  min: number,
+  max: number,
+  label: string,
+): void {
   if (!Number.isFinite(value) || value < min || value > max) {
     throw new Error(`${label} must be between ${min} and ${max}`);
   }
 }
 
-function assertElevenLabsVoiceSettings(settings: ResolvedTtsConfig["elevenlabs"]["voiceSettings"]) {
+function assertElevenLabsVoiceSettings(
+  settings: ResolvedTtsConfig["elevenlabs"]["voiceSettings"],
+) {
   requireInRange(settings.stability, 0, 1, "stability");
   requireInRange(settings.similarityBoost, 0, 1, "similarityBoost");
   requireInRange(settings.style, 0, 1, "style");
@@ -516,16 +554,21 @@ function normalizeLanguageCode(code?: string): string | undefined {
   if (!trimmed) return undefined;
   const normalized = trimmed.toLowerCase();
   if (!/^[a-z]{2}$/.test(normalized)) {
-    throw new Error("languageCode must be a 2-letter ISO 639-1 code (e.g. en, de, fr)");
+    throw new Error(
+      "languageCode must be a 2-letter ISO 639-1 code (e.g. en, de, fr)",
+    );
   }
   return normalized;
 }
 
-function normalizeApplyTextNormalization(mode?: string): "auto" | "on" | "off" | undefined {
+function normalizeApplyTextNormalization(
+  mode?: string,
+): "auto" | "on" | "off" | undefined {
   const trimmed = mode?.trim();
   if (!trimmed) return undefined;
   const normalized = trimmed.toLowerCase();
-  if (normalized === "auto" || normalized === "on" || normalized === "off") return normalized;
+  if (normalized === "auto" || normalized === "on" || normalized === "off")
+    return normalized;
   throw new Error("applyTextNormalization must be one of: auto, on, off");
 }
 
@@ -555,7 +598,12 @@ function parseTtsDirectives(
   policy: ResolvedTtsModelOverrides,
 ): TtsDirectiveParseResult {
   if (!policy.enabled) {
-    return { cleanedText: text, overrides: {}, warnings: [], hasDirective: false };
+    return {
+      cleanedText: text,
+      overrides: {},
+      warnings: [],
+      hasDirective: false,
+    };
   }
 
   const overrides: TtsDirectiveOverrides = {};
@@ -587,7 +635,11 @@ function parseTtsDirectives(
         switch (key) {
           case "provider":
             if (!policy.allowProvider) break;
-            if (rawValue === "openai" || rawValue === "elevenlabs" || rawValue === "edge") {
+            if (
+              rawValue === "openai" ||
+              rawValue === "elevenlabs" ||
+              rawValue === "edge"
+            ) {
               overrides.provider = rawValue;
             } else {
               warnings.push(`unsupported provider "${rawValue}"`);
@@ -609,7 +661,10 @@ function parseTtsDirectives(
           case "elevenlabsvoice":
             if (!policy.allowVoice) break;
             if (isValidVoiceId(rawValue)) {
-              overrides.elevenlabs = { ...overrides.elevenlabs, voiceId: rawValue };
+              overrides.elevenlabs = {
+                ...overrides.elevenlabs,
+                voiceId: rawValue,
+              };
             } else {
               warnings.push(`invalid ElevenLabs voiceId "${rawValue}"`);
             }
@@ -625,7 +680,10 @@ function parseTtsDirectives(
             if (isValidOpenAIModel(rawValue)) {
               overrides.openai = { ...overrides.openai, model: rawValue };
             } else {
-              overrides.elevenlabs = { ...overrides.elevenlabs, modelId: rawValue };
+              overrides.elevenlabs = {
+                ...overrides.elevenlabs,
+                modelId: rawValue,
+              };
             }
             break;
           case "stability":
@@ -639,7 +697,10 @@ function parseTtsDirectives(
               requireInRange(value, 0, 1, "stability");
               overrides.elevenlabs = {
                 ...overrides.elevenlabs,
-                voiceSettings: { ...overrides.elevenlabs?.voiceSettings, stability: value },
+                voiceSettings: {
+                  ...overrides.elevenlabs?.voiceSettings,
+                  stability: value,
+                },
               };
             }
             break;
@@ -656,7 +717,10 @@ function parseTtsDirectives(
               requireInRange(value, 0, 1, "similarityBoost");
               overrides.elevenlabs = {
                 ...overrides.elevenlabs,
-                voiceSettings: { ...overrides.elevenlabs?.voiceSettings, similarityBoost: value },
+                voiceSettings: {
+                  ...overrides.elevenlabs?.voiceSettings,
+                  similarityBoost: value,
+                },
               };
             }
             break;
@@ -671,7 +735,10 @@ function parseTtsDirectives(
               requireInRange(value, 0, 1, "style");
               overrides.elevenlabs = {
                 ...overrides.elevenlabs,
-                voiceSettings: { ...overrides.elevenlabs?.voiceSettings, style: value },
+                voiceSettings: {
+                  ...overrides.elevenlabs?.voiceSettings,
+                  style: value,
+                },
               };
             }
             break;
@@ -686,7 +753,10 @@ function parseTtsDirectives(
               requireInRange(value, 0.5, 2, "speed");
               overrides.elevenlabs = {
                 ...overrides.elevenlabs,
-                voiceSettings: { ...overrides.elevenlabs?.voiceSettings, speed: value },
+                voiceSettings: {
+                  ...overrides.elevenlabs?.voiceSettings,
+                  speed: value,
+                },
               };
             }
             break;
@@ -703,7 +773,10 @@ function parseTtsDirectives(
               }
               overrides.elevenlabs = {
                 ...overrides.elevenlabs,
-                voiceSettings: { ...overrides.elevenlabs?.voiceSettings, useSpeakerBoost: value },
+                voiceSettings: {
+                  ...overrides.elevenlabs?.voiceSettings,
+                  useSpeakerBoost: value,
+                },
               };
             }
             break;
@@ -751,7 +824,11 @@ function parseTtsDirectives(
   };
 }
 
-export const OPENAI_TTS_MODELS = ["gpt-4o-mini-tts", "tts-1", "tts-1-hd"] as const;
+export const OPENAI_TTS_MODELS = [
+  "gpt-4o-mini-tts",
+  "tts-1",
+  "tts-1-hd",
+] as const;
 
 /**
  * Custom OpenAI-compatible TTS endpoint.
@@ -761,10 +838,9 @@ export const OPENAI_TTS_MODELS = ["gpt-4o-mini-tts", "tts-1", "tts-1-hd"] as con
  * Note: Read at runtime (not module load) to support config.env loading.
  */
 function getOpenAITtsBaseUrl(): string {
-  return (process.env.OPENAI_TTS_BASE_URL?.trim() || "https://api.openai.com/v1").replace(
-    /\/+$/,
-    "",
-  );
+  return (
+    process.env.OPENAI_TTS_BASE_URL?.trim() || "https://api.openai.com/v1"
+  ).replace(/\/+$/, "");
 }
 
 function isCustomOpenAIEndpoint(): boolean {
@@ -787,7 +863,9 @@ type OpenAiTtsVoice = (typeof OPENAI_TTS_VOICES)[number];
 function isValidOpenAIModel(model: string): boolean {
   // Allow any model when using custom endpoint (e.g., Kokoro, LocalAI)
   if (isCustomOpenAIEndpoint()) return true;
-  return OPENAI_TTS_MODELS.includes(model as (typeof OPENAI_TTS_MODELS)[number]);
+  return OPENAI_TTS_MODELS.includes(
+    model as (typeof OPENAI_TTS_MODELS)[number],
+  );
 }
 
 function isValidOpenAIVoice(voice: string): voice is OpenAiTtsVoice {
@@ -816,7 +894,10 @@ function resolveSummaryModelRef(
   const override = config.summaryModel?.trim();
   if (!override) return { ref: defaultRef, source: "default" };
 
-  const aliasIndex = buildModelAliasIndex({ cfg, defaultProvider: defaultRef.provider });
+  const aliasIndex = buildModelAliasIndex({
+    cfg,
+    defaultProvider: defaultRef.provider,
+  });
   const resolved = resolveModelRefFromString({
     raw: override,
     defaultProvider: defaultRef.provider,
@@ -846,7 +927,9 @@ async function summarizeText(params: {
   const { ref } = resolveSummaryModelRef(cfg, config);
   const resolved = resolveModel(ref.provider, ref.model, undefined, cfg);
   if (!resolved.model) {
-    throw new Error(resolved.error ?? `Unknown summary model: ${ref.provider}/${ref.model}`);
+    throw new Error(
+      resolved.error ?? `Unknown summary model: ${ref.provider}/${ref.model}`,
+    );
   }
   const apiKey = requireApiKey(
     await getApiKeyForModel({ model: resolved.model, cfg }),
@@ -910,7 +993,10 @@ async function summarizeText(params: {
   }
 }
 
-function scheduleCleanup(tempDir: string, delayMs: number = TEMP_FILE_CLEANUP_DELAY_MS): void {
+function scheduleCleanup(
+  tempDir: string,
+  delayMs: number = TEMP_FILE_CLEANUP_DELAY_MS,
+): void {
   const timer = setTimeout(() => {
     try {
       rmSync(tempDir, { recursive: true, force: true });
@@ -952,14 +1038,18 @@ async function elevenLabsTTS(params: {
   }
   assertElevenLabsVoiceSettings(voiceSettings);
   const normalizedLanguage = normalizeLanguageCode(languageCode);
-  const normalizedNormalization = normalizeApplyTextNormalization(applyTextNormalization);
+  const normalizedNormalization = normalizeApplyTextNormalization(
+    applyTextNormalization,
+  );
   const normalizedSeed = normalizeSeed(seed);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const url = new URL(`${normalizeElevenLabsBaseUrl(baseUrl)}/v1/text-to-speech/${voiceId}`);
+    const url = new URL(
+      `${normalizeElevenLabsBaseUrl(baseUrl)}/v1/text-to-speech/${voiceId}`,
+    );
     if (outputFormat) {
       url.searchParams.set("output_format", outputFormat);
     }
@@ -1049,7 +1139,11 @@ function inferEdgeExtension(outputFormat: string): string {
   if (normalized.includes("webm")) return ".webm";
   if (normalized.includes("ogg")) return ".ogg";
   if (normalized.includes("opus")) return ".opus";
-  if (normalized.includes("wav") || normalized.includes("riff") || normalized.includes("pcm")) {
+  if (
+    normalized.includes("wav") ||
+    normalized.includes("riff") ||
+    normalized.includes("pcm")
+  ) {
     return ".wav";
   }
   return ".mp3";
@@ -1105,6 +1199,33 @@ export async function textToSpeech(params: {
   for (const provider of providers) {
     const providerStart = Date.now();
     try {
+      if (provider === "macos") {
+        if (process.platform !== "darwin") {
+          lastError = "macos: only supported on macOS";
+          continue;
+        }
+        const tempDir = mkdtempSync(path.join(tmpdir(), "tts-"));
+        const audioPath = path.join(tempDir, `voice-${Date.now()}.aiff`);
+        const { spawn } = await import("node:child_process");
+        await new Promise<void>((resolve, reject) => {
+          const child = spawn("say", ["-o", audioPath, params.text]);
+          child.on("error", reject);
+          child.on("exit", (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`say exited with code ${code}`));
+          });
+        });
+
+        scheduleCleanup(tempDir);
+        return {
+          success: true,
+          audioPath,
+          latencyMs: Date.now() - providerStart,
+          provider: "macos",
+          voiceCompatible: false,
+        };
+      }
+
       if (provider === "edge") {
         if (!config.edge.enabled) {
           lastError = "edge: disabled";
@@ -1114,11 +1235,16 @@ export async function textToSpeech(params: {
         const tempDir = mkdtempSync(path.join(tmpdir(), "tts-"));
         let edgeOutputFormat = resolveEdgeOutputFormat(config);
         const fallbackEdgeOutputFormat =
-          edgeOutputFormat !== DEFAULT_EDGE_OUTPUT_FORMAT ? DEFAULT_EDGE_OUTPUT_FORMAT : undefined;
+          edgeOutputFormat !== DEFAULT_EDGE_OUTPUT_FORMAT
+            ? DEFAULT_EDGE_OUTPUT_FORMAT
+            : undefined;
 
         const attemptEdgeTts = async (outputFormat: string) => {
           const extension = inferEdgeExtension(outputFormat);
-          const audioPath = path.join(tempDir, `voice-${Date.now()}${extension}`);
+          const audioPath = path.join(
+            tempDir,
+            `voice-${Date.now()}${extension}`,
+          );
           await edgeTTS({
             text: params.text,
             outputPath: audioPath,
@@ -1135,7 +1261,10 @@ export async function textToSpeech(params: {
         try {
           edgeResult = await attemptEdgeTts(edgeOutputFormat);
         } catch (err) {
-          if (fallbackEdgeOutputFormat && fallbackEdgeOutputFormat !== edgeOutputFormat) {
+          if (
+            fallbackEdgeOutputFormat &&
+            fallbackEdgeOutputFormat !== edgeOutputFormat
+          ) {
             logVerbose(
               `TTS: Edge output ${edgeOutputFormat} failed; retrying with ${fallbackEdgeOutputFormat}.`,
             );
@@ -1161,7 +1290,9 @@ export async function textToSpeech(params: {
         }
 
         scheduleCleanup(tempDir);
-        const voiceCompatible = isVoiceCompatibleAudio({ fileName: edgeResult.audioPath });
+        const voiceCompatible = isVoiceCompatibleAudio({
+          fileName: edgeResult.audioPath,
+        });
 
         return {
           success: true,
@@ -1188,7 +1319,8 @@ export async function textToSpeech(params: {
           ...params.overrides?.elevenlabs?.voiceSettings,
         };
         const seedOverride = params.overrides?.elevenlabs?.seed;
-        const normalizationOverride = params.overrides?.elevenlabs?.applyTextNormalization;
+        const normalizationOverride =
+          params.overrides?.elevenlabs?.applyTextNormalization;
         const languageOverride = params.overrides?.elevenlabs?.languageCode;
         audioBuffer = await elevenLabsTTS({
           text: params.text,
@@ -1198,7 +1330,8 @@ export async function textToSpeech(params: {
           modelId: modelIdOverride ?? config.elevenlabs.modelId,
           outputFormat: output.elevenlabs,
           seed: seedOverride ?? config.elevenlabs.seed,
-          applyTextNormalization: normalizationOverride ?? config.elevenlabs.applyTextNormalization,
+          applyTextNormalization:
+            normalizationOverride ?? config.elevenlabs.applyTextNormalization,
           languageCode: languageOverride ?? config.elevenlabs.languageCode,
           voiceSettings,
           timeoutMs: config.timeoutMs,
@@ -1219,7 +1352,10 @@ export async function textToSpeech(params: {
       const latencyMs = Date.now() - providerStart;
 
       const tempDir = mkdtempSync(path.join(tmpdir(), "tts-"));
-      const audioPath = path.join(tempDir, `voice-${Date.now()}${output.extension}`);
+      const audioPath = path.join(
+        tempDir,
+        `voice-${Date.now()}${output.extension}`,
+      );
       writeFileSync(audioPath, audioBuffer);
       scheduleCleanup(tempDir);
 
@@ -1361,7 +1497,9 @@ export async function maybeApplyTtsToPayload(params: {
   const text = params.payload.text ?? "";
   const directives = parseTtsDirectives(text, config.modelOverrides);
   if (directives.warnings.length > 0) {
-    logVerbose(`TTS: ignored directive overrides (${directives.warnings.join("; ")})`);
+    logVerbose(
+      `TTS: ignored directive overrides (${directives.warnings.join("; ")})`,
+    );
   }
 
   const cleanedText = directives.cleanedText;
@@ -1378,13 +1516,16 @@ export async function maybeApplyTtsToPayload(params: {
         };
 
   if (autoMode === "tagged" && !directives.hasDirective) return nextPayload;
-  if (autoMode === "inbound" && params.inboundAudio !== true) return nextPayload;
+  if (autoMode === "inbound" && params.inboundAudio !== true)
+    return nextPayload;
 
   const mode = config.mode ?? "final";
-  if (mode === "final" && params.kind && params.kind !== "final") return nextPayload;
+  if (mode === "final" && params.kind && params.kind !== "final")
+    return nextPayload;
 
   if (!ttsText.trim()) return nextPayload;
-  if (params.payload.mediaUrl || (params.payload.mediaUrls?.length ?? 0) > 0) return nextPayload;
+  if (params.payload.mediaUrl || (params.payload.mediaUrls?.length ?? 0) > 0)
+    return nextPayload;
   if (text.includes("MEDIA:")) return nextPayload;
   if (ttsText.trim().length < 10) return nextPayload;
 
@@ -1419,7 +1560,9 @@ export async function maybeApplyTtsToPayload(params: {
         }
       } catch (err) {
         const error = err as Error;
-        logVerbose(`TTS: summarization failed, truncating instead: ${error.message}`);
+        logVerbose(
+          `TTS: summarization failed, truncating instead: ${error.message}`,
+        );
         textForAudio = `${textForAudio.slice(0, maxLength - 3)}...`;
       }
     }
@@ -1445,7 +1588,8 @@ export async function maybeApplyTtsToPayload(params: {
     };
 
     const channelId = resolveChannelId(params.channel);
-    const shouldVoice = channelId === "telegram" && result.voiceCompatible === true;
+    const shouldVoice =
+      channelId === "telegram" && result.voiceCompatible === true;
     const finalPayload = {
       ...nextPayload,
       mediaUrl: result.audioPath,
@@ -1463,7 +1607,9 @@ export async function maybeApplyTtsToPayload(params: {
   };
 
   const latency = Date.now() - ttsStart;
-  logVerbose(`TTS: conversion failed after ${latency}ms (${result.error ?? "unknown"}).`);
+  logVerbose(
+    `TTS: conversion failed after ${latency}ms (${result.error ?? "unknown"}).`,
+  );
   return nextPayload;
 }
 

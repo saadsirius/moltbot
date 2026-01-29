@@ -38,35 +38,46 @@ export async function vocalCommand(
     CommandSource: "native",
   };
 
+  // Play "listening" chime
+  await playAudio("/System/Library/Sounds/Tink.aiff").catch(() => {});
+
   runtime.log(`Vocal input: "${transcript}"`);
 
+  // Play "understood" chime
+  await playAudio("/System/Library/Sounds/Glass.aiff").catch(() => {});
+
   // Get reply from agent
+  let playChain = Promise.resolve();
   const result = await getReplyFromConfig(ctx, {
-    // Force a direct reply if possible
+    // Force direct block-by-block delivery for vocal
+    onBlockReply: async (payload) => {
+      const text = payload.text?.trim();
+      if (!text) return;
+
+      if (opts.verbose) {
+        runtime.log(`[Streaming] Moltbot: "${text}"`);
+      }
+
+      // Chain TTS and playback to ensure sequence
+      playChain = playChain.then(async () => {
+        const ttsResult = await textToSpeech({ text, cfg });
+        if (ttsResult.success && ttsResult.audioPath) {
+          await playAudio(ttsResult.audioPath);
+        } else if (ttsResult.error) {
+          runtime.error(`TTS failed: ${ttsResult.error}`);
+        }
+      });
+    },
   });
 
+  // Wait for any remaining audio to finish
+  await playChain;
+
   if (!result || !result.payloads || result.payloads.length === 0) {
-    runtime.log("No response from agent.");
-    return;
-  }
-
-  for (const payload of result.payloads) {
-    const text = payload.text?.trim();
-    if (!text) continue;
-
-    runtime.log(`Moltbot: "${text}"`);
-
-    // Convert text to speech
-    const ttsResult = await textToSpeech({
-      text,
-      cfg,
-    });
-
-    if (ttsResult.success && ttsResult.audioPath) {
-      // Play audio locally
-      await playAudio(ttsResult.audioPath);
-    } else if (ttsResult.error) {
-      runtime.error(`TTS failed: ${ttsResult.error}`);
+    if (!opts.verbose) {
+      // If not verbose and we got no blocks, at least say something
+      runtime.log("No response from agent.");
     }
+    return;
   }
 }
