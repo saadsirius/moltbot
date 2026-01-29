@@ -69,6 +69,7 @@ const resolveSessionTtsAuto = (
 export type DispatchFromConfigResult = {
   queuedFinal: boolean;
   counts: Record<ReplyDispatchKind, number>;
+  didSendViaMessagingTool?: boolean;
 };
 
 export async function dispatchReplyFromConfig(params: {
@@ -263,7 +264,11 @@ export async function dispatchReplyFromConfig(params: {
       counts.final += routedFinalCount;
       recordProcessed("completed", { reason: "fast_abort" });
       markIdle("message_completed");
-      return { queuedFinal, counts };
+      return {
+        queuedFinal,
+        counts,
+        didSendViaMessagingTool: false,
+      };
     }
 
     // Track accumulated block text for TTS generation after streaming completes.
@@ -272,7 +277,7 @@ export async function dispatchReplyFromConfig(params: {
     let accumulatedBlockText = "";
     let blockCount = 0;
 
-    const replyResult = await (params.replyResolver ?? getReplyFromConfig)(
+    const repliesResult = await (params.replyResolver ?? getReplyFromConfig)(
       ctx,
       {
         ...params.replyOptions,
@@ -306,7 +311,8 @@ export async function dispatchReplyFromConfig(params: {
       cfg,
     );
 
-    const replies = replyResult ? (Array.isArray(replyResult) ? replyResult : [replyResult]) : [];
+    const replies = repliesResult?.payloads ?? [];
+    const didSendViaMessagingTool = repliesResult?.didSendViaMessagingTool;
 
     let queuedFinal = false;
     let routedFinalCount = 0;
@@ -403,7 +409,7 @@ export async function dispatchReplyFromConfig(params: {
     counts.final += routedFinalCount;
     recordProcessed("completed");
     markIdle("message_completed");
-    return { queuedFinal, counts };
+    return { queuedFinal, counts, didSendViaMessagingTool };
   } catch (err) {
     recordProcessed("error", { error: String(err) });
     markIdle("message_error");

@@ -1,6 +1,7 @@
 import { resolveMessagePrefix } from "../../../agents/identity.js";
 import { formatInboundEnvelope, type EnvelopeFormatOptions } from "../../../auto-reply/envelope.js";
 import type { loadConfig } from "../../../config/config.js";
+import { normalizeE164 } from "../../../utils.js";
 import type { WebInboundMsg } from "../types.js";
 
 export function formatReplyContext(msg: WebInboundMsg) {
@@ -19,10 +20,15 @@ export function buildInboundLine(params: {
 }) {
   const { cfg, msg, agentId, previousTimestamp, envelope } = params;
   // WhatsApp inbound prefix: channels.whatsapp.messagePrefix > legacy messages.messagePrefix > identity/defaults
-  const messagePrefix = resolveMessagePrefix(cfg, agentId, {
-    configured: cfg.channels?.whatsapp?.messagePrefix,
-    hasAllowFrom: (cfg.channels?.whatsapp?.allowFrom?.length ?? 0) > 0,
-  });
+  const fromNormalized = msg.from ? normalizeE164(msg.from) : null;
+  const toNormalized = msg.to ? normalizeE164(msg.to) : null;
+  const messagePrefix =
+    msg.chatType === "direct" && fromNormalized && fromNormalized === toNormalized
+      ? ""
+      : resolveMessagePrefix(cfg, agentId, {
+          configured: cfg.channels?.whatsapp?.messagePrefix,
+          hasAllowFrom: (cfg.channels?.whatsapp?.allowFrom?.length ?? 0) > 0,
+        });
   const prefixStr = messagePrefix ? `${messagePrefix} ` : "";
   const replyContext = formatReplyContext(msg);
   const baseLine = `${prefixStr}${msg.body}${replyContext ? `\n\n${replyContext}` : ""}`;

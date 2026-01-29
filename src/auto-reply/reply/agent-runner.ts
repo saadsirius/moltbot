@@ -19,7 +19,7 @@ import { defaultRuntime } from "../../runtime.js";
 import { estimateUsageCost, resolveModelCostConfig } from "../../utils/usage-format.js";
 import type { OriginatingChannelType, TemplateContext } from "../templating.js";
 import { resolveResponseUsageMode, type VerboseLevel } from "../thinking.js";
-import type { GetReplyOptions, ReplyPayload } from "../types.js";
+import type { AgentReplyResult, GetReplyOptions, ReplyPayload } from "../types.js";
 import { runAgentTurnWithFallback } from "./agent-runner-execution.js";
 import {
   createShouldEmitToolOutput,
@@ -73,7 +73,7 @@ export async function runReplyAgent(params: {
   sessionCtx: TemplateContext;
   shouldInjectGroupIntro: boolean;
   typingMode: TypingMode;
-}): Promise<ReplyPayload | ReplyPayload[] | undefined> {
+}): Promise<AgentReplyResult | undefined> {
   const {
     commandBody,
     followupRun,
@@ -178,6 +178,17 @@ export async function runReplyAgent(params: {
     }
   }
 
+  const wrapResult = (
+    result: ReplyPayload | ReplyPayload[] | undefined,
+    didSendViaMessagingTool?: boolean,
+  ): AgentReplyResult | undefined => {
+    if (result === undefined && !didSendViaMessagingTool) return undefined;
+    return {
+      payloads: Array.isArray(result) ? result : result ? [result] : [],
+      didSendViaMessagingTool,
+    };
+  };
+
   if (isActive && (shouldFollowup || resolvedQueue.mode === "steer")) {
     enqueueFollowupRun(queueKey, followupRun, resolvedQueue);
     if (activeSessionEntry && activeSessionStore && sessionKey) {
@@ -193,7 +204,7 @@ export async function runReplyAgent(params: {
       }
     }
     typing.cleanup();
-    return undefined;
+    return wrapResult(undefined, true);
   }
 
   await typingSignals.signalRunStart();
@@ -272,7 +283,9 @@ export async function runReplyAgent(params: {
     defaultRuntime.error(buildLogMessage(nextSessionId));
     if (cleanupTranscripts && prevSessionId) {
       const transcriptCandidates = new Set<string>();
-      const resolved = resolveSessionFilePath(prevSessionId, prevEntry, { agentId });
+      const resolved = resolveSessionFilePath(prevSessionId, prevEntry, {
+        agentId,
+      });
       if (resolved) transcriptCandidates.add(resolved);
       transcriptCandidates.add(resolveSessionTranscriptPath(prevSessionId, agentId));
       for (const candidate of transcriptCandidates) {
@@ -325,7 +338,7 @@ export async function runReplyAgent(params: {
     });
 
     if (runOutcome.kind === "final") {
-      return finalizeWithFollowup(runOutcome.payload, queueKey, runFollowupTurn);
+      return finalizeWithFollowup(wrapResult(runOutcome.payload, false), queueKey, runFollowupTurn);
     }
 
     const { runResult, fallbackProvider, fallbackModel, directlySentBlockKeys } = runOutcome;
@@ -391,8 +404,7 @@ export async function runReplyAgent(params: {
     // Drain any late tool/block deliveries before deciding there's "nothing to send".
     // Otherwise, a late typing trigger (e.g. from a tool callback) can outlive the run and
     // keep the typing indicator stuck.
-    if (payloadArray.length === 0)
-      return finalizeWithFollowup(undefined, queueKey, runFollowupTurn);
+    if (payloadArray.length === 0) return wrapResult(undefined, false);
 
     const payloadResult = buildReplyPayloads({
       payloads: payloadArray,
@@ -410,11 +422,10 @@ export async function runReplyAgent(params: {
       originatingTo: sessionCtx.OriginatingTo ?? sessionCtx.To,
       accountId: sessionCtx.AccountId,
     });
-    const { replyPayloads } = payloadResult;
+    const { replyPayloads, didSendViaMessagingTool } = payloadResult;
     didLogHeartbeatStrip = payloadResult.didLogHeartbeatStrip;
 
-    if (replyPayloads.length === 0)
-      return finalizeWithFollowup(undefined, queueKey, runFollowupTurn);
+    if (replyPayloads.length === 0 && !didSendViaMessagingTool) return wrapResult(undefined, false);
 
     await signalTypingIfNeeded(replyPayloads, typingSignals);
 
@@ -503,7 +514,7 @@ export async function runReplyAgent(params: {
     }
 
     return finalizeWithFollowup(
-      finalPayloads.length === 1 ? finalPayloads[0] : finalPayloads,
+      wrapResult(replyPayloads, didSendViaMessagingTool),
       queueKey,
       runFollowupTurn,
     );

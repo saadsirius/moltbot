@@ -31,7 +31,7 @@ import {
   type VerboseLevel,
 } from "../thinking.js";
 import { SILENT_REPLY_TOKEN } from "../tokens.js";
-import type { GetReplyOptions, ReplyPayload } from "../types.js";
+import type { AgentReplyResult, GetReplyOptions, ReplyPayload } from "../types.js";
 import { runReplyAgent } from "./agent-runner.js";
 import { applySessionHints } from "./body.js";
 import { routeReply } from "./route-reply.js";
@@ -106,7 +106,7 @@ type RunPreparedReplyParams = {
 
 export async function runPreparedReply(
   params: RunPreparedReplyParams,
-): Promise<ReplyPayload | ReplyPayload[] | undefined> {
+): Promise<AgentReplyResult | undefined> {
   const {
     ctx,
     sessionCtx,
@@ -204,7 +204,11 @@ export async function runPreparedReply(
     logVerbose("Inbound body empty after normalization; skipping agent run");
     typing.cleanup();
     return {
-      text: "I didn't receive any text in your message. Please resend or add a caption.",
+      payloads: [
+        {
+          text: "I didn't receive any text in your message. Please resend or add a caption.",
+        },
+      ],
     };
   }
   let prefixedBodyBase = await applySessionHints({
@@ -269,7 +273,11 @@ export async function runPreparedReply(
     if (explicitThink) {
       typing.cleanup();
       return {
-        text: `Thinking level "xhigh" is only supported for ${formatXHighModelHint()}. Use /think high or switch to one of those models.`,
+        payloads: [
+          {
+            text: `Thinking level "xhigh" is only supported for ${formatXHighModelHint()}. Use /think high or switch to one of those models.`,
+          },
+        ],
       };
     }
     resolvedThinkLevel = "high";
@@ -319,7 +327,7 @@ export async function runPreparedReply(
   const resolvedQueue = resolveQueueSettings({
     cfg,
     channel: sessionCtx.Provider,
-    sessionEntry,
+    sessionEntry: sessionEntry!,
     inlineMode: perMessageQueueMode,
     inlineOptions: perMessageQueueOptions,
   });

@@ -238,7 +238,10 @@ export async function processMessage(params: {
   let didLogHeartbeatStrip = false;
   let didSendReply = false;
   const commandAuthorized = shouldComputeCommandAuthorized(params.msg.body, params.cfg)
-    ? await resolveWhatsAppCommandAuthorized({ cfg: params.cfg, msg: params.msg })
+    ? await resolveWhatsAppCommandAuthorized({
+        cfg: params.cfg,
+        msg: params.msg,
+      })
     : undefined;
   const configuredResponsePrefix = params.cfg.messages?.responsePrefix;
   const prefixContext = createReplyPrefixContext({
@@ -320,7 +323,7 @@ export async function processMessage(params: {
   });
   trackBackgroundTask(params.backgroundTasks, metaTask);
 
-  const { queuedFinal } = await dispatchReplyWithBufferedBlockDispatcher({
+  const { queuedFinal, didSendViaMessagingTool } = await dispatchReplyWithBufferedBlockDispatcher({
     ctx: ctxPayload,
     cfg: params.cfg,
     replyResolver: params.replyResolver,
@@ -394,7 +397,13 @@ export async function processMessage(params: {
     if (shouldClearGroupHistory) {
       params.groupHistories.set(params.groupHistoryKey, []);
     }
-    logVerbose("Skipping auto-reply: silent token or no text/media returned from resolver");
+    if (didSendViaMessagingTool) {
+      params.replyLogger.info("auto-reply finalized via messaging tool (no additional text/media)");
+    } else {
+      params.replyLogger.info(
+        "Skipping auto-reply: silent token or no text/media returned from resolver",
+      );
+    }
     return false;
   }
 

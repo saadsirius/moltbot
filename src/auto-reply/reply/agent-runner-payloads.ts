@@ -32,7 +32,11 @@ export function buildReplyPayloads(params: {
   >[0]["messagingToolSentTargets"];
   originatingTo?: string;
   accountId?: string;
-}): { replyPayloads: ReplyPayload[]; didLogHeartbeatStrip: boolean } {
+}): {
+  replyPayloads: ReplyPayload[];
+  didLogHeartbeatStrip: boolean;
+  didSendViaMessagingTool: boolean;
+} {
   let didLogHeartbeatStrip = params.didLogHeartbeatStrip;
   const sanitizedPayloads = params.isHeartbeat
     ? params.payloads
@@ -115,5 +119,6 @@ export function buildReplyPayloads(params: {
   return {
     replyPayloads,
     didLogHeartbeatStrip,
+    didSendViaMessagingTool: suppressMessagingToolReplies,
   };
 }

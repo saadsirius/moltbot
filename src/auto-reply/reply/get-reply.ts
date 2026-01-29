@@ -13,7 +13,7 @@ import type { MsgContext } from "../templating.js";
 import { SILENT_REPLY_TOKEN } from "../tokens.js";
 import { applyMediaUnderstanding } from "../../media-understanding/apply.js";
 import { applyLinkUnderstanding } from "../../link-understanding/apply.js";
-import type { GetReplyOptions, ReplyPayload } from "../types.js";
+import type { AgentReplyResult, GetReplyOptions, ReplyPayload } from "../types.js";
 import { resolveDefaultModel } from "./directive-handling.js";
 import { resolveReplyDirectives } from "./get-reply-directives.js";
 import { handleInlineActions } from "./get-reply-inline-actions.js";
@@ -28,7 +28,7 @@ export async function getReplyFromConfig(
   ctx: MsgContext,
   opts?: GetReplyOptions,
   configOverride?: MoltbotConfig,
-): Promise<ReplyPayload | ReplyPayload[] | undefined> {
+): Promise<AgentReplyResult | undefined> {
   const isFastTestEnv = process.env.CLAWDBOT_TEST_FAST === "1";
   const cfg = configOverride ?? loadConfig();
   const targetSessionKey =
@@ -168,7 +168,9 @@ export async function getReplyFromConfig(
     skillFilter: opts?.skillFilter,
   });
   if (directiveResult.kind === "reply") {
-    return directiveResult.reply;
+    const raw = directiveResult.reply;
+    const payloads = (Array.isArray(raw) ? raw : [raw]).filter((p): p is ReplyPayload => p != null);
+    return { payloads };
   }
 
   let {
@@ -241,7 +243,12 @@ export async function getReplyFromConfig(
     skillFilter: opts?.skillFilter,
   });
   if (inlineActionResult.kind === "reply") {
-    return inlineActionResult.reply;
+    const reply = inlineActionResult.reply;
+    return {
+      payloads: (Array.isArray(reply) ? reply : [reply]).filter(
+        (p): p is ReplyPayload => p != null,
+      ),
+    };
   }
   directives = inlineActionResult.directives;
   abortedLastRun = inlineActionResult.abortedLastRun ?? abortedLastRun;
