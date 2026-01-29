@@ -22,8 +22,14 @@ export function buildInboundLine(params: {
   // WhatsApp inbound prefix: channels.whatsapp.messagePrefix > legacy messages.messagePrefix > identity/defaults
   const fromNormalized = msg.from ? normalizeE164(msg.from) : null;
   const toNormalized = msg.to ? normalizeE164(msg.to) : null;
+  const selfE164Normalized = msg.selfE164 ? normalizeE164(msg.selfE164) : null;
+  const isSelfChat =
+    msg.from === msg.to ||
+    (fromNormalized && toNormalized && fromNormalized === toNormalized) ||
+    (fromNormalized && selfE164Normalized && fromNormalized === selfE164Normalized);
+
   const messagePrefix =
-    msg.chatType === "direct" && fromNormalized && fromNormalized === toNormalized
+    msg.chatType === "direct" && isSelfChat
       ? ""
       : resolveMessagePrefix(cfg, agentId, {
           configured: cfg.channels?.whatsapp?.messagePrefix,
