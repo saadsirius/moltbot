@@ -42,11 +42,7 @@ describe("macos TTS provider", () => {
     expect(result.audioPath).toMatch(/\.aiff$/);
     expect(spawn).toHaveBeenCalledWith(
       "say",
-      expect.arrayContaining([
-        "-o",
-        expect.stringMatching(/\.aiff$/),
-        "Hello world",
-      ]),
+      expect.arrayContaining(["-o", expect.stringMatching(/\.aiff$/), "Hello world"]),
     );
   });
 

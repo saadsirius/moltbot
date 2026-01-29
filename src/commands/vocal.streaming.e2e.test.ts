@@ -69,10 +69,7 @@ describe("vocal command E2E - streaming flow", () => {
       playCallOrder.push(path);
     });
 
-    await vocalCommand(
-      { transcript: "Tell me a story", verbose: true },
-      mockRuntime as any,
-    );
+    await vocalCommand({ transcript: "Tell me a story", verbose: true }, mockRuntime as any);
 
     // Verify chimes were played
     expect(playAudio).toHaveBeenCalledWith("/System/Library/Sounds/Tink.aiff");
@@ -129,10 +126,7 @@ describe("vocal command E2E - streaming flow", () => {
         error: "TTS service unavailable",
       });
 
-    await vocalCommand(
-      { transcript: "Test", verbose: false },
-      mockRuntime as any,
-    );
+    await vocalCommand({ transcript: "Test", verbose: false }, mockRuntime as any);
 
     // Should log error but continue
     expect(mockRuntime.error).toHaveBeenCalledWith(
@@ -175,27 +169,16 @@ describe("vocal command E2E - streaming flow", () => {
       provider: "macos",
     });
 
-    await vocalCommand(
-      { transcript: "Test", verbose: false },
-      mockRuntime as any,
-    );
+    await vocalCommand({ transcript: "Test", verbose: false }, mockRuntime as any);
 
     // Should only process non-empty blocks
     expect(textToSpeech).toHaveBeenCalledTimes(2);
-    expect(textToSpeech).toHaveBeenCalledWith(
-      expect.objectContaining({ text: "Valid text" }),
-    );
-    expect(textToSpeech).toHaveBeenCalledWith(
-      expect.objectContaining({ text: "More valid text" }),
-    );
+    expect(textToSpeech).toHaveBeenCalledWith(expect.objectContaining({ text: "Valid text" }));
+    expect(textToSpeech).toHaveBeenCalledWith(expect.objectContaining({ text: "More valid text" }));
   });
 
   it("should verify latency improvement from streaming", async () => {
-    const blocks = [
-      { text: "Block 1" },
-      { text: "Block 2" },
-      { text: "Block 3" },
-    ];
+    const blocks = [{ text: "Block 1" }, { text: "Block 2" }, { text: "Block 3" }];
 
     let onBlockReplyCallback: any;
     const blockTimestamps: number[] = [];
@@ -229,14 +212,9 @@ describe("vocal command E2E - streaming flow", () => {
       };
     });
 
-    await vocalCommand(
-      { transcript: "Test streaming", verbose: false },
-      mockRuntime as any,
-    );
+    await vocalCommand({ transcript: "Test streaming", verbose: false }, mockRuntime as any);
 
     // Verify first TTS started before all blocks were received
-    expect(ttsTimestamps[0]).toBeLessThan(
-      blockTimestamps[blockTimestamps.length - 1],
-    );
+    expect(ttsTimestamps[0]).toBeLessThan(blockTimestamps[blockTimestamps.length - 1]);
   });
 });
