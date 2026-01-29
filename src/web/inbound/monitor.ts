@@ -97,6 +97,9 @@ export async function monitorWebInbox(options: {
       };
       await options.onMessage(combinedMessage);
     },
+    onStart: (msg) => {
+      void msg.sendComposing();
+    },
     onError: (err) => {
       inboundLogger.error({ error: String(err) }, "failed handling inbound web message");
       inboundConsoleLog.error(`Failed handling inbound web message: ${String(err)}`);

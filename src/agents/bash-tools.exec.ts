@@ -600,13 +600,14 @@ async function runExecProcess(opts: {
   };
 
   if (pty) {
+    const ptyInstance = pty;
     const cursorResponse = buildCursorPositionResponse();
-    pty.onData((data) => {
+    ptyInstance.onData((data) => {
       const raw = data.toString();
       const { cleaned, requests } = stripDsrRequests(raw);
       if (requests > 0) {
         for (let i = 0; i < requests; i += 1) {
-          pty.write(cursorResponse);
+          ptyInstance.write(cursorResponse);
         }
       }
       handleStdout(cleaned);
@@ -709,7 +710,7 @@ export function createExecTool(
 ): AgentTool<any, ExecToolDetails> {
   const defaultBackgroundMs = clampNumber(
     defaults?.backgroundMs ?? readEnvInt("PI_BASH_YIELD_MS"),
-    10_000,
+    5_000,
     10,
     120_000,
   );
@@ -928,7 +929,9 @@ export function createExecTool(
         const argv = buildNodeShellCommand(params.command, nodeInfo?.platform);
         const nodeEnv = params.env ? { ...params.env } : undefined;
         if (nodeEnv) {
-          applyPathPrepend(nodeEnv, defaultPathPrepend, { requireExisting: true });
+          applyPathPrepend(nodeEnv, defaultPathPrepend, {
+            requireExisting: true,
+          });
         }
         const baseAllowlistEval = evaluateShellAllowlist({
           command: params.command,
@@ -1333,7 +1336,10 @@ export function createExecTool(
             const summary = output
               ? `Exec finished (gateway id=${approvalId}, session=${run.session.id}, ${exitLabel})\n${output}`
               : `Exec finished (gateway id=${approvalId}, session=${run.session.id}, ${exitLabel})`;
-            emitExecSystemEvent(summary, { sessionKey: notifySessionKey, contextKey });
+            emitExecSystemEvent(summary, {
+              sessionKey: notifySessionKey,
+              contextKey,
+            });
           })();
 
           return {

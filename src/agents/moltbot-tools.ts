@@ -18,6 +18,7 @@ import { createSessionsSendTool } from "./tools/sessions-send-tool.js";
 import { createSessionsSpawnTool } from "./tools/sessions-spawn-tool.js";
 import { createWebFetchTool, createWebSearchTool } from "./tools/web-tools.js";
 import { createTtsTool } from "./tools/tts-tool.js";
+import { createMacControlTool } from "./tools/mac-control-tool.js";
 
 export function createMoltbotTools(options?: {
   sandboxBrowserBridgeUrl?: string;
@@ -70,6 +71,7 @@ export function createMoltbotTools(options?: {
     config: options?.config,
     sandboxed: options?.sandboxed,
   });
+  const macControlTool = createMacControlTool();
   const tools: AnyAgentTool[] = [
     createBrowserTool({
       sandboxBridgeUrl: options?.sandboxBrowserBridgeUrl,
@@ -134,6 +136,7 @@ export function createMoltbotTools(options?: {
       agentSessionKey: options?.agentSessionKey,
       config: options?.config,
     }),
+    ...(macControlTool ? [macControlTool] : []),
     ...(webSearchTool ? [webSearchTool] : []),
     ...(webFetchTool ? [webFetchTool] : []),
     ...(imageTool ? [imageTool] : []),
